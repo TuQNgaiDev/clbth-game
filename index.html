@@ -290,6 +290,14 @@ body:not(.playing) #start>span{font-size:21px;line-height:1;font-weight:500}
 }
 
 @media screen{#status,body.playing #status{display:none!important}}
+.completion-dialog{margin:auto;width:min(460px,calc(100% - 32px));max-height:calc(100dvh - 32px);overflow:auto;padding:32px 24px;border:1px solid #b6d0bc;border-radius:24px;background:#fffdf8;color:var(--ink);text-align:center;box-shadow:0 24px 80px #15251e40}
+.completion-dialog::backdrop{background:#23332d88;backdrop-filter:blur(5px)}
+.completion-mark{display:grid;place-items:center;width:76px;height:76px;margin:0 auto 18px;border-radius:50%;background:#146137;color:white;font-size:46px;font-weight:800}
+.completion-dialog h2{margin:0 0 12px;font-size:clamp(27px,5vw,36px);line-height:1.2}
+.completion-dialog p{margin:0 0 25px;font-size:16px;line-height:1.6}
+.completion-actions{display:flex;justify-content:center;gap:12px;flex-wrap:wrap}
+#replayGame{background:#fbd06e;border:1px solid #bb9436;font-weight:800}
+@media print{.completion-dialog{display:none!important}}
 </style>
 </head>
 <body><main>
@@ -304,6 +312,7 @@ body:not(.playing) #start>span{font-size:21px;line-height:1;font-weight:500}
 <div class="club-credit">© CLB Tin học UED · Trường Đại học Sư phạm – Đại học Đà Nẵng</div>
 </main>
 <div id="cancelDialog" class="cancel-dialog" role="alertdialog" aria-modal="true" aria-labelledby="cancelTitle" aria-describedby="cancelDescription" aria-hidden="true"><div class="cancel-dialog-card"><h2 id="cancelTitle">Hủy lượt chơi này?</h2><p id="cancelDescription">Tiến trình hiện tại sẽ bị xóa.<br>Bạn có muốn quay về màn hình chờ?</p><div class="cancel-dialog-actions"><button id="continueGame" class="control">Tiếp tục chơi</button><button id="confirmCancel" class="control">Hủy lượt chơi</button></div></div></div>
+<dialog id="completionDialog" class="completion-dialog" aria-labelledby="completionTitle" aria-describedby="completionDescription"><div class="completion-mark" aria-hidden="true">✓</div><h2 id="completionTitle">Đã hoàn thành!</h2><p id="completionDescription">Cả đội đã tìm đủ <strong>36/36 số</strong>.<br>Mời trưởng trạm xác nhận kết quả.</p><div class="completion-actions"><button id="viewBoard" class="control" autofocus>Xem bảng</button><button id="replayGame" class="control">Chơi lại</button></div></dialog>
 <script>
 'use strict';
 const $ = id => document.getElementById(id);
@@ -321,6 +330,7 @@ function sync(){
  
 }
 function makeBoard(){
+ if($('completionDialog').open)$('completionDialog').close();
  for(const timer of flashes.values())clearTimeout(timer);flashes.clear();
  numbers=shuffle(Array.from({length:50},(_,i)=>i+1));nextNumber=1;state='ready';
  board.replaceChildren();
@@ -349,7 +359,7 @@ function selectNumber(n,btn){
   message('Chưa đúng! Cần tìm số '+nextNumber+'. Hãy sửa rồi mới đổi người.','error');return;
  }
  if(flashes.has(btn)){clearTimeout(flashes.get(btn));flashes.delete(btn);}btn.classList.remove('wrong');btn.classList.add('found');btn.setAttribute('aria-pressed','true');btn.setAttribute('aria-label','Đã chọn đúng số '+n);nextNumber++;
- if(nextNumber===37){state='finished';message('Hoàn thành đủ 36 số! Mời trưởng trạm xác nhận.','win');}
+ if(nextNumber===37){state='finished';message('Hoàn thành đủ 36 số! Mời trưởng trạm xác nhận.','win');$('completionDialog').showModal();}
  else message('Đúng rồi! Đổi người tiếp theo và tìm số '+nextNumber+'.');
  sync();
 }
@@ -387,6 +397,8 @@ function hideCancelDialog(){
  cancelOpen=false;$('cancelDialog').classList.remove('is-open');$('cancelDialog').setAttribute('aria-hidden','true');sync();$('cancel').focus();
 }
 $('cancel').addEventListener('click',showCancelDialog);
+$('viewBoard').addEventListener('click',()=>{$('completionDialog').close();$('reset').focus();});
+$('replayGame').addEventListener('click',cancelGame);
 $('continueGame').addEventListener('click',hideCancelDialog);
 $('confirmCancel').addEventListener('click',()=>{hideCancelDialog();cancelGame();});
 $('cancelDialog').addEventListener('click',event=>{if(event.target===$('cancelDialog'))hideCancelDialog();});
@@ -396,6 +408,7 @@ document.addEventListener('fullscreenchange',()=>{
  if(!document.fullscreenElement)requestedFullscreen=false;
 });
 document.addEventListener('keydown',event=>{
+ if($('completionDialog').open)return;
  if(cancelOpen){
   if(event.key==='Escape'){event.preventDefault();event.stopPropagation();hideCancelDialog();}
   else if(event.key==='Tab'){event.preventDefault();const other=document.activeElement===$('continueGame')?$('confirmCancel'):$('continueGame');other.focus();}
